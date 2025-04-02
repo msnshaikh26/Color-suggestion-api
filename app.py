@@ -8,59 +8,41 @@ Original file is located at
 """
 from flask import Flask, request, jsonify
 from colorthief import ColorThief
-import colorsys
-import os
+from PIL import Image
+import requests
+import io
 
 app = Flask(__name__)
 
-# Function to extract dominant colors
-def extract_colors(image_path, num_colors=5):
-    color_thief = ColorThief(image_path)
-    palette = color_thief.get_palette(color_count=num_colors)
-    return palette
+# Function to get dominant colors from an image
+def get_dominant_colors(image_url, num_colors=3):
+    response = requests.get(image_url)
+    if response.status_code == 200:
+        image = io.BytesIO(response.content)
+        color_thief = ColorThief(image)
+        palette = color_thief.get_palette(color_count=num_colors)
+        return palette
+    return None
 
-# Function to generate background suggestions
-def suggest_background_colors(main_color):
-    r, g, b = main_color
-    h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)
-
-    complementary = colorsys.hsv_to_rgb((h + 0.5) % 1, s, v)
-    complementary = tuple(int(c * 255) for c in complementary)
-
-    analogous1 = colorsys.hsv_to_rgb((h + 0.1) % 1, s, v)
-    analogous2 = colorsys.hsv_to_rgb((h - 0.1) % 1, s, v)
-    analogous1 = tuple(int(c * 255) for c in analogous1)
-    analogous2 = tuple(int(c * 255) for c in analogous2)
-
-    return {
-        "complementary": complementary,
-        "analogous1": analogous1,
-        "analogous2": analogous2
-    }
-
-# API Route: Upload image and get background color suggestions
+# API endpoint to suggest background colors
 @app.route('/suggest-colors', methods=['POST'])
 def suggest_colors():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+    data = request.json
+    if 'image_url' not in data:
+        return jsonify({'error': 'No image URL provided'}), 400
+    
+    image_url = data['image_url']
+    colors = get_dominant_colors(image_url)
+    
+    if colors:
+        return jsonify({'suggested_colors': colors})
+    else:
+        return jsonify({'error': 'Could not process image'}), 500
 
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-
-    file_path = os.path.join("temp_image.jpg")
-    file.save(file_path)
-
-    # Extract colors and get suggestions
-    palette = extract_colors(file_path)
-    os.remove(file_path)  # Delete the file after processing
-
-    suggested_colors = {str(i+1): suggest_background_colors(color) for i, color in enumerate(palette[:3])}
-
-    return jsonify({"palette": palette, "suggested_colors": suggested_colors})
-    @app.route('/')
+# Homepage route to prevent 404 errors
+@app.route('/')
 def home():
     return "Welcome to the Background Color Suggestion API! Use the /suggest-colors endpoint."
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    app.run(debug=True)
