@@ -58,6 +58,9 @@ def suggest_colors():
     suggested_colors = {str(i+1): suggest_background_colors(color) for i, color in enumerate(palette[:3])}
 
     return jsonify({"palette": palette, "suggested_colors": suggested_colors})
+    @app.route('/')
+def home():
+    return "Welcome to the Background Color Suggestion API! Use the /suggest-colors endpoint."
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
