@@ -9,6 +9,7 @@ Original file is located at
 from flask import Flask, request, jsonify
 from colorthief import ColorThief
 import colorsys
+import os
 
 app = Flask(__name__)
 
@@ -31,25 +32,32 @@ def suggest_background_colors(main_color):
     analogous1 = tuple(int(c * 255) for c in analogous1)
     analogous2 = tuple(int(c * 255) for c in analogous2)
 
-    return {"complementary": complementary, "analogous": [analogous1, analogous2]}
+    return {
+        "complementary": complementary,
+        "analogous1": analogous1,
+        "analogous2": analogous2
+    }
 
-# API endpoint
+# API Route: Upload image and get background color suggestions
 @app.route('/suggest-colors', methods=['POST'])
 def suggest_colors():
-    if 'image' not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
 
-    image = request.files['image']
-    image_path = "temp.jpg"
-    image.save(image_path)
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
 
-    colors = extract_colors(image_path)
-    background_suggestions = suggest_background_colors(colors[0])
+    file_path = os.path.join("temp_image.jpg")
+    file.save(file_path)
 
-    return jsonify({
-        "dominant_colors": colors,
-        "background_suggestions": background_suggestions
-    })
+    # Extract colors and get suggestions
+    palette = extract_colors(file_path)
+    os.remove(file_path)  # Delete the file after processing
+
+    suggested_colors = {str(i+1): suggest_background_colors(color) for i, color in enumerate(palette[:3])}
+
+    return jsonify({"palette": palette, "suggested_colors": suggested_colors})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=5000)
