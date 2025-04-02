@@ -7,8 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/1_6bM6MzAIcG6lLS4vG9zsbukgZ6td2-s
 """
 
-!pip install flask colorthief pillow
-
 from flask import Flask, request, jsonify
 from colorthief import ColorThief
 import colorsys
